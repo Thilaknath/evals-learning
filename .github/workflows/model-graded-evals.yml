@@ -1,0 +1,34 @@
+name: Model-Graded Evals
+
+on:
+  # Manual trigger only - not triggered on push
+  workflow_dispatch:
+
+env:
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+jobs:
+  run-model-graded-evals:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run model-graded evaluations
+        run: python -m pytest --junitxml=results.xml -v test_model_graded_evals.py
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: model-graded-eval-results
+          path: results.xml
