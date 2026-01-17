@@ -1,0 +1,101 @@
+name: Comprehensive Tests
+
+on:
+  # Manual trigger only - not triggered on push
+  workflow_dispatch:
+
+env:
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+jobs:
+  run-comprehensive-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run comprehensive tests
+        run: python -m pytest --junitxml=results.xml -v -s test_comprehensive.py
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: comprehensive-test-results
+          path: results.xml
+
+      - name: Generate HTML report
+        if: always()
+        run: |
+          python -c "
+          import pandas as pd
+          from app import assistant_chain, quiz_bank
+          from test_comprehensive import create_detailed_eval_chain, TEST_DATASET
+
+          def evaluate_dataset(dataset, quiz_bank, assistant, evaluator):
+              eval_results = []
+              for row in dataset:
+                  eval_result = {}
+                  user_input = row['input']
+                  answer = assistant.invoke({'question': user_input})
+                  eval_response = evaluator.invoke({'context': quiz_bank, 'agent_response': answer})
+                  eval_result['input'] = user_input
+                  eval_result['output'] = answer
+                  eval_result['grader_response'] = eval_response
+                  eval_results.append(eval_result)
+              return eval_results
+
+          assistant = assistant_chain()
+          evaluator = create_detailed_eval_chain()
+          eval_results = evaluate_dataset(TEST_DATASET, quiz_bank, assistant, evaluator)
+          
+          df = pd.DataFrame(eval_results)
+          df_html = df.to_html().replace('\\\\n', '<br>')
+          
+          html_content = '''
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>Comprehensive Test Evaluation Report</title>
+              <style>
+                  body { font-family: Arial, sans-serif; margin: 20px; }
+                  table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+                  th, td { border: 1px solid #ddd; padding: 12px; text-align: left; vertical-align: top; }
+                  th { background-color: #4CAF50; color: white; }
+                  tr:nth-child(even) { background-color: #f2f2f2; }
+                  tr:hover { background-color: #ddd; }
+                  h1 { color: #333; }
+                  .summary { margin: 20px 0; padding: 15px; background-color: #e7f3fe; border-left: 6px solid #2196F3; }
+              </style>
+          </head>
+          <body>
+              <h1>Comprehensive Test Evaluation Report</h1>
+              <div class=\"summary\">
+                  <strong>Test Cases Evaluated:</strong> ''' + str(len(eval_results)) + '''<br>
+                  <strong>Report Generated:</strong> Automated CI Pipeline
+              </div>
+              ''' + df_html + '''
+          </body>
+          </html>
+          '''
+          
+          with open('comprehensive_eval_results.html', 'w') as f:
+              f.write(html_content)
+          print('HTML report generated: comprehensive_eval_results.html')
+          "
+
+      - name: Upload HTML report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: comprehensive-eval-report
+          path: comprehensive_eval_results.html

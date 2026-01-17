@@ -1,0 +1,25 @@
+.env
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Transcripts
+transcripts/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Test outputs
+results.xml
+*.html
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
