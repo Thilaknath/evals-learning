@@ -14,12 +14,6 @@ on:
           - full
           - report
 
-  # Auto-trigger on push to main branch (commit evals)
-  push:
-    branches:
-      - main
-      - master
-
 env:
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
