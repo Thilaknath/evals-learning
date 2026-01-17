@@ -1,0 +1,105 @@
+name: LLM Evals
+
+on:
+  # Manual trigger with eval mode selection
+  workflow_dispatch:
+    inputs:
+      eval-mode:
+        description: 'Evaluation mode to run'
+        required: true
+        default: 'commit'
+        type: choice
+        options:
+          - commit
+          - full
+          - report
+
+  # Auto-trigger on push to main branch (commit evals)
+  push:
+    branches:
+      - main
+      - master
+
+env:
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+jobs:
+  # Commit-level evaluations (runs on push or manual trigger)
+  run-commit-evals:
+    if: github.event_name == 'push' || github.event.inputs.eval-mode == 'commit'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run commit evaluations
+        run: python -m pytest --junitxml=results.xml test_assistant.py
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: commit-eval-results
+          path: results.xml
+
+  # Full evaluations (manual trigger only)
+  run-full-evals:
+    if: github.event.inputs.eval-mode == 'full'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run full evaluations
+        run: python -m pytest --junitxml=results.xml test_assistant.py
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: full-eval-results
+          path: results.xml
+
+  # Generate evaluation report (manual trigger only)
+  generate-report:
+    if: github.event.inputs.eval-mode == 'report'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate evaluation artifacts
+        run: python save_eval_artifacts.py
+
+      - name: Upload HTML report
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: /tmp/eval_results.html
